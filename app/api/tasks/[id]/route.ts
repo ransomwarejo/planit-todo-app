@@ -10,6 +10,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       },
     })
 
+    if (response.status === 404) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 })
+    }
+
     if (!response.ok) {
       return NextResponse.json({ error: "Failed to fetch task" }, { status: response.status })
     }

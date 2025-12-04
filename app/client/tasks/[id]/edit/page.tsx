@@ -34,19 +34,22 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
         setStatus(data.status.toUpperCase().replace("-", "_"))
         setDueDate(data.dueDate.split("T")[0])
       } catch (error) {
-        console.error("[v0] Error fetching task:", error)
+        console.error("Error fetching task:", error)
         toast({
           title: "Error",
-          description: "Failed to load task. Please try again.",
+          description: "Task not found. Redirecting to tasks list.",
           variant: "destructive",
         })
+        setTimeout(() => {
+          router.push("/client/tasks")
+        }, 2000)
       } finally {
         setLoading(false)
       }
     }
 
     fetchTask()
-  }, [params.id])
+  }, [params.id, router, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

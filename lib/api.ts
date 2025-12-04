@@ -82,6 +82,10 @@ export const getTask = async (id: string): Promise<Task> => {
   try {
     const response = await fetch(`${API_BASE_URL}/tasks/${id}`)
 
+    if (response.status === 404) {
+      throw new Error("Task not found")
+    }
+
     if (!response.ok) {
       throw new Error("Failed to fetch task")
     }
@@ -89,6 +93,10 @@ export const getTask = async (id: string): Promise<Task> => {
     const data = await response.json()
     return data
   } catch (error) {
+    if (error instanceof Error && error.message === "Task not found") {
+      throw error
+    }
+
     const tasks = getMockTasks()
     const task = tasks.find((t) => t.id === id)
     if (!task) throw new Error("Task not found")
