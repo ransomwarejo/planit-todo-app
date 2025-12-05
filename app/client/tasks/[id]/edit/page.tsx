@@ -13,9 +13,10 @@ import { useEffect, useState } from "react"
 import { getTask, updateTask } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
-export default function EditTaskPage({ params }: { params: { id: string } }) {
+export default function EditTaskPage({ params }: { params: { id: string } | Promise<{ id: string }> }) {
   const router = useRouter()
   const { toast } = useToast()
+  const [taskId, setTaskId] = useState<string | null>(null)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState("MEDIUM")
@@ -25,9 +26,23 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    const resolveParams = async () => {
+      if (params instanceof Promise) {
+        const resolvedParams = await params
+        setTaskId(resolvedParams.id)
+      } else {
+        setTaskId(params.id)
+      }
+    }
+    resolveParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!taskId) return
+
     const fetchTask = async () => {
       try {
-        const data = await getTask(params.id)
+        const data = await getTask(taskId)
         setTitle(data.title)
         setDescription(data.description)
         setPriority(data.priority.toUpperCase())
@@ -49,16 +64,18 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
     }
 
     fetchTask()
-  }, [params.id, router, toast])
+  }, [taskId, router, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!taskId) return
+
     setIsSubmitting(true)
 
     try {
       const isoDate = new Date(dueDate).toISOString()
 
-      await updateTask(params.id, {
+      await updateTask(taskId, {
         title,
         description,
         priority: priority as "LOW" | "MEDIUM" | "HIGH",
@@ -73,7 +90,7 @@ export default function EditTaskPage({ params }: { params: { id: string } }) {
 
       router.push("/client/tasks")
     } catch (error) {
-      console.error("[v0] Error updating task:", error)
+      console.error("Error updating task:", error)
       toast({
         title: "Error",
         description: "Failed to update task. Please try again.",

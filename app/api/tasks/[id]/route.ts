@@ -2,9 +2,15 @@ import { type NextRequest, NextResponse } from "next/server"
 
 const API_BASE_URL = "https://planit-mfzh.onrender.com/api"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> | { id: string } }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/tasks/${params.id}`, {
+    const params = await Promise.resolve(context.params)
+    const id = params.id
+
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
       headers: {
         "Content-Type": "application/json",
       },
@@ -26,67 +32,71 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> | { id: string } }) {
   try {
+    const params = await Promise.resolve(context.params)
+    const id = params.id
+
     const body = await request.json()
 
-    console.log("[v0] PUT request body:", JSON.stringify(body, null, 2))
-
-    const response = await fetch(`${API_BASE_URL}/tasks/${params.id}`, {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify(body),
     })
 
-    console.log("[v0] PUT response status:", response.status)
-    const responseText = await response.text()
-    console.log("[v0] PUT response body:", responseText)
-
     if (!response.ok) {
-      console.error(`[v0] PUT failed with status ${response.status} and body:`, responseText)
-      return NextResponse.json({ error: "Failed to update task" }, { status: response.status })
+      const errorText = await response.text()
+      console.error(`PUT failed with status ${response.status}:`, errorText)
+      return NextResponse.json({ error: "Failed to update task", details: errorText }, { status: response.status })
     }
 
     const contentType = response.headers.get("content-type")
+    const responseText = await response.text()
 
     if (!responseText || !contentType?.includes("application/json")) {
-      return NextResponse.json({ ...body, id: params.id })
+      return NextResponse.json({ ...body, id }, { status: 200 })
     }
 
     const data = JSON.parse(responseText)
-    return NextResponse.json(data)
+    return NextResponse.json(data, { status: 200 })
   } catch (error) {
-    console.error("[v0] Error updating task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error updating task:", error)
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> | { id: string } }) {
   try {
-    console.log("[v0] DELETE request for task:", params.id)
+    const params = await Promise.resolve(context.params)
+    const id = params.id
 
-    const response = await fetch(`${API_BASE_URL}/tasks/${params.id}`, {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
         Accept: "*/*",
       },
     })
 
-    console.log("[v0] DELETE response status:", response.status)
-
     if (response.ok || response.status === 204) {
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true }, { status: 200 })
     }
 
     const responseText = await response.text()
-    console.error(`[v0] DELETE failed with status ${response.status} and body:`, responseText)
+    console.error(`DELETE failed with status ${response.status}:`, responseText)
 
-    return NextResponse.json({ error: "Failed to delete task" }, { status: response.status })
+    return NextResponse.json({ error: "Failed to delete task", details: responseText }, { status: response.status })
   } catch (error) {
-    console.error("[v0] Error deleting task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error deleting task:", error)
+    return NextResponse.json(
+      { error: "Internal server error", message: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }
